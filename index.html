@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bahasa Isyarat Translate</title>
+    <title>BISINDO AI Pro - Custom Key</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
@@ -17,6 +17,8 @@
         .header { width: 100%; padding: 15px 30px; background: #1e1e1e; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; gap: 15px; flex-wrap: wrap;}
         .header-title { font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
         .mode-select { background: #333; color: #fff; border: 1px solid #00e676; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; outline: none;}
+        .key-btn { background: #333; border: 1px solid #555; color: #ccc; padding: 5px 10px; font-size: 0.8rem; border-radius: 5px; cursor: pointer;}
+        .key-btn:hover { background: #444; color: white; }
 
         /* LAYOUT GRID */
         .main-wrapper { display: flex; flex-wrap: wrap; gap: 20px; width: 95%; max-width: 1300px; margin-top: 20px; justify-content: center; }
@@ -29,11 +31,10 @@
         canvas { position: absolute; top: 0; left: 0; }
 
         /* OVERLAY */
-        .overlay-status { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .overlay-status { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
         .overlay-status.active { opacity: 1; }
-        /* Bar Timer warna merah saat merekam */
-        .timer-bar { width: 80%; height: 10px; background: #444; margin-top: 15px; border-radius: 5px; overflow: hidden; }
-        .timer-fill { height: 100%; background: #ff4081; width: 0%; } 
+        .timer-bar { width: 60%; height: 8px; background: #444; margin-top: 15px; border-radius: 4px; overflow: hidden; }
+        .timer-fill { height: 100%; background: #00e676; width: 0%; }
 
         /* SENTENCE BOX */
         .sentence-display { width: 95%; max-width: 1300px; margin-top: 20px; background: #1a1a1a; border: 1px solid #444; border-radius: 10px; padding: 15px 25px; text-align: left; display: flex; flex-direction: column;}
@@ -45,6 +46,7 @@
         th { text-align: left; padding: 12px; color: #aaa; font-size: 0.8rem; border-bottom: 1px solid #444; position: sticky; top: 0; background: #252525; z-index: 2;}
         td { padding: 10px 12px; border-bottom: 1px solid #333; color: #ddd; vertical-align: middle; }
         
+        /* STYLE HASIL */
         .col-raw { color: #ffeb3b; font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 5px;}
         .view-capture-btn { background: #333; color: #bbb; border: 1px solid #555; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block;}
         .view-capture-btn:hover { background: #444; color: #fff; border-color: #888; }
@@ -73,6 +75,15 @@
         .close-modal { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 40px; cursor: pointer; }
         .modal-caption { position: absolute; bottom: 30px; color: white; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; font-size: 1.2rem;}
 
+        /* API KEY MODAL */
+        .key-modal-box { background: #1e1e1e; padding: 30px; border-radius: 15px; border: 1px solid #444; text-align: center; width: 400px; max-width: 90%; }
+        .key-input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #555; background: #121212; color: #fff; box-sizing: border-box; font-size: 1rem; }
+        .key-submit { width: 100%; padding: 12px; background: #00e676; color: #000; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+        .key-submit:hover { background: #00c853; }
+        
+        /* SELECT AI MODEL */
+        .ai-select { width: 100%; padding: 10px; border-radius: 8px; background: #2a2a2a; color: white; border: 1px solid #555; margin-bottom: 10px; }
+
         /* SWITCH */
         .switch { position: relative; display: inline-block; width: 50px; height: 26px; margin-left: 10px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -84,6 +95,28 @@
 </head>
 <body>
 
+    <div id="keyModal" class="modal" style="display: flex;">
+        <div class="key-modal-box">
+            <h2 style="margin-top:0;">🔑 Setup AI Engine</h2>
+            
+            <p style="color:#aaa; font-size:0.9rem; text-align:left; margin-bottom:5px;">1. Masukkan API Key:</p>
+            <input type="password" id="apiKeyInput" class="key-input" placeholder="Paste API Key here..." style="margin-top:0;">
+            
+            <p style="color:#aaa; font-size:0.9rem; text-align:left; margin-bottom:5px; margin-top:15px;">2. Pilih Model AI:</p>
+            <select id="aiModelSelect" class="ai-select">
+                <option value="gemini-robotics-er-1.5-preview">Gemini Experimental (Default - Region Free)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Cepat)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Lebih Pintar - Butuh VPN)</option>
+            </select>
+
+            <button onclick="saveSettings()" class="key-submit" style="margin-top:20px;">SIMPAN & LANJUTKAN</button>
+            
+            <p style="font-size:0.8rem; color:#555; margin-top:15px;">
+                Belum punya key? <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00e676;">Dapatkan di sini</a>
+            </p>
+        </div>
+    </div>
+
     <div id="captureModal" class="modal">
         <span class="close-modal" onclick="closeModal()">&times;</span>
         <img class="modal-content" id="modalImg">
@@ -92,11 +125,12 @@
 
     <div class="header">
         <div class="header-title">
-            <span>Transalte Isyarat To text</span>
+            <span>🤖 BISINDO ULTIMATE</span>
             <select id="mode-select" class="mode-select">
-                <option value="ALPHABET">🔤 Alfabet (Gerak Z/J + Validasi)</option>
+                <option value="ALPHABET">🔤 Alfabet (A-Z + Validasi)</option>
                 <option value="GENERAL">🌏 General (Kata & Kalimat)</option>
             </select>
+            <button onclick="changeKey()" class="key-btn">🔑 Config AI</button>
         </div>
         
         <div style="display:flex; align-items:center;">
@@ -125,8 +159,8 @@
                 <video id="video" playsinline></video>
                 <canvas id="canvas"></canvas>
                 <div id="overlay" class="overlay-status">
-                    <div style="font-weight:bold; font-size:1.2rem;">Scanning!</div>
-                    <div style="font-size:0.9rem; color:#ff4081;">Jejak gerakan sedang direkam...</div>
+                    <div style="font-size:3rem; margin-bottom:10px;">👁️</div>
+                    <div style="font-weight:bold; font-size:1.2rem;">MENGANALISIS...</div>
                     <div class="timer-bar"><div class="timer-fill" id="ov-bar"></div></div>
                 </div>
             </div>
@@ -145,7 +179,7 @@
                     <tbody id="table-body"></tbody>
                 </table>
                 <div id="empty-msg" style="text-align:center; padding:30px; color:#555;">
-                    Aktifkan Auto Scan.<br>Lakukan gerakan saat bar merah berjalan.
+                    Siap memindai.<br><small>Gunakan Mode Alfabet untuk melihat Top 3 kandidat.</small>
                 </div>
             </div>
         </div>
@@ -157,9 +191,49 @@
     </div>
 
     <script>
-        const API_KEY = "AIzaSyBah7BqNvpWXQhUOx4ZkgrYwH9S6LaFA5c"; 
-        const MODEL_NAME = "gemini-robotics-er-1.5-preview";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+        // GLOBAL VARS
+        let USER_API_KEY = localStorage.getItem("GEMINI_API_KEY") || "";
+        let CURRENT_MODEL = localStorage.getItem("GEMINI_MODEL") || "gemini-robotics-er-1.5-preview";
+        
+        // === API KEY & MODEL MANAGEMENT ===
+        const keyModal = document.getElementById('keyModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const aiModelSelect = document.getElementById('aiModelSelect');
+
+        // Load saved settings
+        if (USER_API_KEY) apiKeyInput.value = USER_API_KEY;
+        if (CURRENT_MODEL) aiModelSelect.value = CURRENT_MODEL;
+
+        function checkKey() {
+            if(USER_API_KEY) {
+                keyModal.style.display = "none";
+            } else {
+                keyModal.style.display = "flex";
+            }
+        }
+        checkKey();
+
+        function saveSettings() {
+            const key = apiKeyInput.value.trim();
+            const model = aiModelSelect.value;
+            
+            if(key) {
+                USER_API_KEY = key;
+                CURRENT_MODEL = model;
+                
+                localStorage.setItem("GEMINI_API_KEY", key);
+                localStorage.setItem("GEMINI_MODEL", model);
+                
+                keyModal.style.display = "none";
+                alert(`Tersimpan! Menggunakan model: ${model}`);
+            } else {
+                alert("API Key tidak boleh kosong.");
+            }
+        }
+
+        function changeKey() {
+            keyModal.style.display = "flex";
+        }
 
         // === INIT KAMUS ===
         function initDictionary() {
@@ -307,9 +381,17 @@
 
         // API PROCESS
         async function processInBackground(base64, scanId) {
+            if (!USER_API_KEY) {
+                alert("API Key belum diisi!");
+                return;
+            }
+
             const mode = modeSelect.value;
             const prompt = getSystemPrompt(mode);
             captureMap[scanId] = "data:image/jpeg;base64," + base64;
+            
+            // GUNAKAN MODEL YANG DIPILIH USER
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${CURRENT_MODEL}:generateContent?key=${USER_API_KEY}`;
 
             const body = {
                 contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64 } }] }]
@@ -331,28 +413,16 @@
             }
         }
 
-        // === SCAN LOGIC DENGAN AKUMULASI JEJAK ===
+        // === SCAN LOGIC ===
         function processLoop() {
             if (!isLive) return;
-            
-            // IDLE: Menunggu tangan
             if (currentState === STATES.IDLE) {
-                if (handDetected) { 
-                    currentState = STATES.SCANNING; 
-                    scanTimer = 0; 
-                    overlay.classList.add('active'); 
-                    historyPoints = []; // Mulai rekam jejak baru
-                } 
+                if (handDetected) { currentState = STATES.SCANNING; scanTimer = 0; overlay.classList.add('active'); historyPoints = []; } 
                 else { overlay.classList.remove('active'); }
             } 
-            // SCANNING: MEREKAM GERAKAN (0-100%)
             else if (currentState === STATES.SCANNING) {
                 if (!handDetected) { currentState = STATES.IDLE; return; }
-                
-                // Timer berjalan lebih lambat agar user punya waktu gerak (3 detik)
-                scanTimer += 1.5; 
-                ovBar.style.width = scanTimer + "%";
-                
+                scanTimer += 2.5; ovBar.style.width = scanTimer + "%";
                 if (scanTimer >= 100) triggerCapture();
             }
             requestAnimationFrame(processLoop);
@@ -367,15 +437,10 @@
             processInBackground(base64, currentId);
 
             currentState = STATES.COOLDOWN;
-            setTimeout(() => { 
-                currentState = STATES.IDLE; 
-                scanTimer = 0; 
-                overlay.classList.remove('active');
-                historyPoints = []; // Hapus jejak SETELAH capture
-            }, 1500);
+            setTimeout(() => { currentState = STATES.IDLE; scanTimer = 0; overlay.classList.remove('active'); }, 1500);
         }
 
-        // === VISUALISASI LENGAN & JEJAK (Trail tidak dihapus saat scanning) ===
+        // === VISUALISASI ===
         function drawArm(ctx, landmarks) {
             const wrist = landmarks[0]; const midFinger = landmarks[9];
             const w = ctx.canvas.width; const h = ctx.canvas.height;
@@ -390,25 +455,13 @@
         function drawTrail(ctx, landmarks) {
             const indexTip = landmarks[8];
             const w = ctx.canvas.width; const h = ctx.canvas.height;
-            
-            // Tambahkan titik baru
             historyPoints.push({x: indexTip.x * w, y: indexTip.y * h});
-            
-            // LOGIKA PENTING: 
-            // Jika sedang SCANNING, JANGAN hapus jejak lama (biarkan menumpuk untuk membentuk huruf)
-            // Jika IDLE/COOLDOWN, buat efek ular (hapus ekor)
-            if (currentState !== STATES.SCANNING) {
-                if (historyPoints.length > 20) historyPoints.shift();
-            } else {
-                // Batasi max recording agar tidak terlalu penuh (misal 100 titik)
-                if (historyPoints.length > 100) historyPoints.shift();
-            }
+            if (historyPoints.length > 20) historyPoints.shift();
 
             if (historyPoints.length > 1) {
                 ctx.beginPath();
                 ctx.moveTo(historyPoints[0].x, historyPoints[0].y);
                 for (let i = 1; i < historyPoints.length; i++) ctx.lineTo(historyPoints[i].x, historyPoints[i].y);
-                // Jejak lebih tebal dan pink terang
                 ctx.lineWidth = 6; ctx.strokeStyle = "rgba(255, 20, 147, 0.8)"; ctx.stroke();
             }
         }
@@ -429,7 +482,6 @@
                 }
             } else { 
                 handDetected = false; 
-                // Hapus jejak jika tangan hilang, KECUALI sedang scanning (biar gak reset gak sengaja)
                 if(currentState !== STATES.SCANNING) historyPoints = []; 
             }
             ctx.restore();
@@ -443,6 +495,12 @@
         camera.start();
 
         liveToggle.addEventListener('change', (e) => {
+            if(!USER_API_KEY) {
+                alert("Masukkan API Key dulu!");
+                e.target.checked = false;
+                keyModal.style.display = "flex";
+                return;
+            }
             isLive = e.target.checked;
             if (isLive) { currentState = STATES.IDLE; processLoop(); } else { overlay.classList.remove('active'); }
         });
