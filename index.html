@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bahasa Isyarat Translate</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        /* HEADER */
+        .header { width: 100%; padding: 15px 30px; background: #1e1e1e; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; gap: 15px; flex-wrap: wrap;}
+        .header-title { font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+        .mode-select { background: #333; color: #fff; border: 1px solid #00e676; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; outline: none;}
+
+        /* LAYOUT GRID */
+        .main-wrapper { display: flex; flex-wrap: wrap; gap: 20px; width: 95%; max-width: 1300px; margin-top: 20px; justify-content: center; }
+        .left-panel { flex: 1; min-width: 300px; max-width: 500px; }
+        .right-panel { flex: 1.5; min-width: 400px; background: #1e1e1e; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; height: 550px; }
+
+        /* VIDEO AREA */
+        .video-box { position: relative; width: 100%; border: 2px solid #333; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4/3; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        video, canvas { width: 100%; height: 100%; display: block; transform: scaleX(-1); object-fit: cover; } 
+        canvas { position: absolute; top: 0; left: 0; }
+
+        /* OVERLAY */
+        .overlay-status { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .overlay-status.active { opacity: 1; }
+        /* Bar Timer warna merah saat merekam */
+        .timer-bar { width: 80%; height: 10px; background: #444; margin-top: 15px; border-radius: 5px; overflow: hidden; }
+        .timer-fill { height: 100%; background: #ff4081; width: 0%; } 
+
+        /* SENTENCE BOX */
+        .sentence-display { width: 95%; max-width: 1300px; margin-top: 20px; background: #1a1a1a; border: 1px solid #444; border-radius: 10px; padding: 15px 25px; text-align: left; display: flex; flex-direction: column;}
+        .sentence-text { font-size: 2rem; font-weight: 800; color: #fff; margin-top: 5px; }
+
+        /* TABLE */
+        .table-container { flex: 1; overflow-y: auto; padding: 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; padding: 12px; color: #aaa; font-size: 0.8rem; border-bottom: 1px solid #444; position: sticky; top: 0; background: #252525; z-index: 2;}
+        td { padding: 10px 12px; border-bottom: 1px solid #333; color: #ddd; vertical-align: middle; }
+        
+        .col-raw { color: #ffeb3b; font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 5px;}
+        .view-capture-btn { background: #333; color: #bbb; border: 1px solid #555; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block;}
+        .view-capture-btn:hover { background: #444; color: #fff; border-color: #888; }
+
+        /* VALIDATION ROW */
+        .candidates-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;}
+        .candidate-item { text-align: center; background: #2a2a2a; padding: 5px; border-radius: 6px; border: 1px solid #444; min-width: 60px; }
+        .candidate-item.winner { border-color: #00e676; box-shadow: 0 0 8px rgba(0, 230, 118, 0.2); background: #1b3a26; }
+        .cand-img { width: 50px; height: 50px; object-fit: contain; background: #000; border-radius: 4px; margin-bottom: 4px; display: block; margin-left: auto; margin-right: auto;}
+        .cand-char { font-weight: bold; font-size: 1.1rem; color: #fff; display: block; }
+        .cand-score { font-size: 0.75rem; color: #aaa; display: block; }
+        .winner .cand-score { color: #00e676; font-weight: bold; }
+
+        /* DICTIONARY */
+        .dictionary-section { width: 95%; max-width: 1300px; margin-top: 30px; padding-bottom: 50px;}
+        .dict-title { font-size: 1.2rem; font-weight: bold; color: #aaa; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .dict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 10px; }
+        .dict-item { background: #1e1e1e; border-radius: 8px; padding: 8px; text-align: center; border: 1px solid #333; transition: 0.2s; cursor: pointer;}
+        .dict-item:hover { transform: scale(1.05); border-color: #00e676; }
+        .dict-img { width: 100%; height: 50px; object-fit: contain; border-radius: 4px; background: #000; margin-bottom: 5px; }
+        .dict-label { font-weight: bold; color: #fff; font-size: 1rem; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); align-items: center; justify-content: center; }
+        .modal-content { max-width: 80%; max-height: 80%; border: 2px solid #00e676; border-radius: 10px; }
+        .close-modal { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 40px; cursor: pointer; }
+        .modal-caption { position: absolute; bottom: 30px; color: white; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; font-size: 1.2rem;}
+
+        /* SWITCH */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; margin-left: 10px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #00e676; }
+        input:checked + .slider:before { transform: translateX(24px); }
+    </style>
+</head>
+<body>
+
+    <div id="captureModal" class="modal">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div class="modal-caption">Foto yang dikirim ke AI</div>
+    </div>
+
+    <div class="header">
+        <div class="header-title">
+            <span>Transalte Isyarat To text</span>
+            <select id="mode-select" class="mode-select">
+                <option value="ALPHABET">🔤 Alfabet (Gerak Z/J + Validasi)</option>
+                <option value="GENERAL">🌏 General (Kata & Kalimat)</option>
+            </select>
+        </div>
+        
+        <div style="display:flex; align-items:center;">
+            <span style="font-size:0.9rem; color:#aaa;">AUTO SCAN:</span>
+            <label class="switch">
+                <input type="checkbox" id="live-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="sentence-display">
+        <div style="display:flex; justify-content:space-between;">
+            <span style="color:#aaa; font-size:0.8rem;">KALIMAT TERBENTUK:</span>
+            <div>
+                <button onclick="addSpace()" style="background:#333; border:1px solid #555; color:white; padding:5px 10px; cursor:pointer;">Spasi</button>
+                <button onclick="clearAll()" style="background:#333; border:1px solid #555; color:white; padding:5px 10px; cursor:pointer;">Hapus</button>
+            </div>
+        </div>
+        <div class="sentence-text" id="final-sentence">...</div>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="left-panel">
+            <div class="video-box">
+                <video id="video" playsinline></video>
+                <canvas id="canvas"></canvas>
+                <div id="overlay" class="overlay-status">
+                    <div style="font-weight:bold; font-size:1.2rem;">Scanning!</div>
+                    <div style="font-size:0.9rem; color:#ff4081;">Jejak gerakan sedang direkam...</div>
+                    <div class="timer-bar"><div class="timer-fill" id="ov-bar"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="table-container">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th width="40">#</th>
+                            <th>Keputusan AI</th>
+                            <th>Validasi & Kecocokan (Top 3)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+                <div id="empty-msg" style="text-align:center; padding:30px; color:#555;">
+                    Aktifkan Auto Scan.<br>Lakukan gerakan saat bar merah berjalan.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dictionary-section">
+        <div class="dict-title">📚 KAMUS REFERENSI (A-Z)</div>
+        <div class="dict-grid" id="dict-grid"></div>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyBah7BqNvpWXQhUOx4ZkgrYwH9S6LaFA5c"; 
+        const MODEL_NAME = "gemini-robotics-er-1.5-preview";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+
+        // === INIT KAMUS ===
+        function initDictionary() {
+            const grid = document.getElementById('dict-grid');
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let html = "";
+            for (let char of alphabet) {
+                html += `
+                <div class="dict-item">
+                    <img src="pic/${char}.png" class="dict-img" onerror="this.src='https://placehold.co/100x100/000/FFF?text=${char}'">
+                    <div class="dict-label">${char}</div>
+                </div>`;
+            }
+            grid.innerHTML = html;
+        }
+        initDictionary();
+
+        // === PROMPT CERDAS ===
+        function getSystemPrompt(mode) {
+            if (mode === 'ALPHABET') {
+                return `
+                Role: Detektor Forensik Abjad BISINDO (A-Z).
+                TASK (GEOMETRY + MOTION):
+                1. SANGAT PENTING: Lihat GARIS PINK (Jejak Gerakan).
+                   - Jika jejak membentuk 'Z', itu huruf 'Z'.
+                   - Jika jejak melengkung seperti 'J', itu huruf 'J'.
+                2. Jika tidak ada jejak panjang, analisis bentuk jari statis.
+                3. Bandingkan dengan database Abjad BISINDO.
+                4. Tentukan 3 kandidat abjad.
+                
+                Rules: Output HANYA huruf tunggal (A-Z).
+                
+                OUTPUT JSON:
+                {
+                    "final": "HURUF_TERBAIK",
+                    "candidates": [
+                        {"char": "HURUF_1", "score": 90},
+                        {"char": "HURUF_2", "score": 15},
+                        {"char": "HURUF_3", "score": 5}
+                    ]
+                }
+                `;
+            } else {
+                return `
+                Role: Ahli Linguistik BISINDO.
+                PROSES BERPIKIR:
+                1. [BODY SCAN] Identifikasi lokasi landmark tubuh (Kepala, Wajah, Dada).
+                2. [HAND LOCALIZATION] Tentukan posisi tangan relatif tubuh (Dada=SAYA/MAAF, Mulut=MAKAN/BICARA).
+                3. [MOTION] Lihat jejak PINK. Gerakan berulang? Melingkar?
+                4. [SYNTHESIS] Gabungkan Bentuk + Lokasi + Gerakan.
+
+                OUTPUT JSON: { "text": "HASIL_TERJEMAHAN" }
+                `;
+            }
+        }
+
+        // STATE
+        const STATES = { IDLE: 0, SCANNING: 1, COOLDOWN: 2 };
+        let currentState = STATES.IDLE;
+        let isLive = false;
+        let handDetected = false;
+        let scanTimer = 0;
+        let globalScanCount = 0;
+        let sentenceBuffer = "";
+        let captureMap = {};
+        let historyPoints = []; 
+
+        // DOM
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const ovBar = document.getElementById('ov-bar');
+        const tableBody = document.getElementById('table-body');
+        const emptyMsg = document.getElementById('empty-msg');
+        const finalSentence = document.getElementById('final-sentence');
+        const liveToggle = document.getElementById('live-toggle');
+        const modeSelect = document.getElementById('mode-select');
+        const modal = document.getElementById('captureModal');
+        const modalImg = document.getElementById('modalImg');
+
+        // MODAL
+        function showCapture(id) {
+            if (captureMap[id]) { modalImg.src = captureMap[id]; modal.style.display = "flex"; }
+        }
+        function closeModal() { modal.style.display = "none"; }
+        window.onclick = function(e) { if (e.target == modal) closeModal(); }
+
+        // UI UPDATE
+        function createRow(id) {
+            emptyMsg.style.display = "none";
+            const row = document.createElement('tr');
+            row.id = `row-${id}`;
+            row.innerHTML = `
+                <td style="color:#888">#${id}</td>
+                <td style="color:#ffeb3b">⌛ ...</td>
+                <td>...</td>
+            `;
+            tableBody.prepend(row);
+        }
+
+        function updateRow(id, data, mode) {
+            const cellDecision = document.querySelector(`#row-${id} td:nth-child(2)`);
+            const cellCandidates = document.querySelector(`#row-${id} td:nth-child(3)`);
+            
+            if (!cellDecision) return;
+            if (data.error) { cellDecision.innerHTML = "<span style='color:red'>Error</span>"; return; }
+
+            const viewBtn = `<button class="view-capture-btn" onclick="showCapture(${id})">📷 Cek Foto</button>`;
+            let decisionText = "";
+
+            if (mode === 'ALPHABET') {
+                decisionText = data.final;
+                let candidatesHTML = '<div class="candidates-row">';
+                if(data.candidates && data.candidates.length > 0) {
+                    data.candidates.forEach((cand, idx) => {
+                        const isWinner = idx === 0 ? "winner" : "";
+                        const imgPath = `pic/${cand.char}.png`;
+                        candidatesHTML += `
+                            <div class="candidate-item ${isWinner}">
+                                <img src="${imgPath}" class="cand-img" onerror="this.src='https://placehold.co/50x50/333/FFF?text=?'">
+                                <span class="cand-char">${cand.char}</span>
+                                <span class="cand-score">${cand.score}%</span>
+                            </div>
+                        `;
+                    });
+                }
+                candidatesHTML += '</div>';
+                cellDecision.innerHTML = `<span class="col-raw">${decisionText}</span> ${viewBtn}`;
+                cellCandidates.innerHTML = candidatesHTML;
+            } else {
+                decisionText = data.text;
+                cellDecision.innerHTML = `<span class="col-raw">${decisionText}</span> ${viewBtn}`;
+                cellCandidates.innerHTML = `<span style="color:#555; font-style:italic;">(Validasi gambar non-aktif)</span>`;
+            }
+
+            if (decisionText.length > 1) {
+                if (sentenceBuffer && !sentenceBuffer.endsWith(" ")) sentenceBuffer += " ";
+                sentenceBuffer += decisionText;
+            } else {
+                sentenceBuffer += decisionText;
+            }
+            finalSentence.innerText = sentenceBuffer;
+        }
+
+        // API PROCESS
+        async function processInBackground(base64, scanId) {
+            const mode = modeSelect.value;
+            const prompt = getSystemPrompt(mode);
+            captureMap[scanId] = "data:image/jpeg;base64," + base64;
+
+            const body = {
+                contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/jpeg", data: base64 } }] }]
+            };
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const rawData = await res.json();
+                let text = rawData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+                text = text.replace(/```json|```/g, '').trim();
+                const json = JSON.parse(text);
+                updateRow(scanId, json, mode);
+            } catch (e) {
+                updateRow(scanId, { error: true }, mode);
+            }
+        }
+
+        // === SCAN LOGIC DENGAN AKUMULASI JEJAK ===
+        function processLoop() {
+            if (!isLive) return;
+            
+            // IDLE: Menunggu tangan
+            if (currentState === STATES.IDLE) {
+                if (handDetected) { 
+                    currentState = STATES.SCANNING; 
+                    scanTimer = 0; 
+                    overlay.classList.add('active'); 
+                    historyPoints = []; // Mulai rekam jejak baru
+                } 
+                else { overlay.classList.remove('active'); }
+            } 
+            // SCANNING: MEREKAM GERAKAN (0-100%)
+            else if (currentState === STATES.SCANNING) {
+                if (!handDetected) { currentState = STATES.IDLE; return; }
+                
+                // Timer berjalan lebih lambat agar user punya waktu gerak (3 detik)
+                scanTimer += 1.5; 
+                ovBar.style.width = scanTimer + "%";
+                
+                if (scanTimer >= 100) triggerCapture();
+            }
+            requestAnimationFrame(processLoop);
+        }
+
+        function triggerCapture() {
+            globalScanCount++;
+            const currentId = globalScanCount;
+            const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+            createRow(currentId);
+            processInBackground(base64, currentId);
+
+            currentState = STATES.COOLDOWN;
+            setTimeout(() => { 
+                currentState = STATES.IDLE; 
+                scanTimer = 0; 
+                overlay.classList.remove('active');
+                historyPoints = []; // Hapus jejak SETELAH capture
+            }, 1500);
+        }
+
+        // === VISUALISASI LENGAN & JEJAK (Trail tidak dihapus saat scanning) ===
+        function drawArm(ctx, landmarks) {
+            const wrist = landmarks[0]; const midFinger = landmarks[9];
+            const w = ctx.canvas.width; const h = ctx.canvas.height;
+            const wx = wrist.x * w; const wy = wrist.y * h;
+            const mx = midFinger.x * w; const my = midFinger.y * h;
+            const dx = wx - mx; const dy = wy - my;
+            const armX = wx + dx * 4; const armY = wy + dy * 4;
+            ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(armX, armY);
+            ctx.lineWidth = 15; ctx.strokeStyle = "rgba(0, 100, 255, 0.3)"; ctx.stroke();
+        }
+
+        function drawTrail(ctx, landmarks) {
+            const indexTip = landmarks[8];
+            const w = ctx.canvas.width; const h = ctx.canvas.height;
+            
+            // Tambahkan titik baru
+            historyPoints.push({x: indexTip.x * w, y: indexTip.y * h});
+            
+            // LOGIKA PENTING: 
+            // Jika sedang SCANNING, JANGAN hapus jejak lama (biarkan menumpuk untuk membentuk huruf)
+            // Jika IDLE/COOLDOWN, buat efek ular (hapus ekor)
+            if (currentState !== STATES.SCANNING) {
+                if (historyPoints.length > 20) historyPoints.shift();
+            } else {
+                // Batasi max recording agar tidak terlalu penuh (misal 100 titik)
+                if (historyPoints.length > 100) historyPoints.shift();
+            }
+
+            if (historyPoints.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(historyPoints[0].x, historyPoints[0].y);
+                for (let i = 1; i < historyPoints.length; i++) ctx.lineTo(historyPoints[i].x, historyPoints[i].y);
+                // Jejak lebih tebal dan pink terang
+                ctx.lineWidth = 6; ctx.strokeStyle = "rgba(255, 20, 147, 0.8)"; ctx.stroke();
+            }
+        }
+
+        function onResults(results) {
+            if (currentState === STATES.COOLDOWN) return;
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            ctx.save(); ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handDetected = true;
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawArm(ctx, landmarks);
+                    drawTrail(ctx, landmarks);
+                    drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: '#00e676', lineWidth: 3});
+                    drawLandmarks(ctx, landmarks, {color: '#fff', lineWidth: 2});
+                }
+            } else { 
+                handDetected = false; 
+                // Hapus jejak jika tangan hilang, KECUALI sedang scanning (biar gak reset gak sengaja)
+                if(currentState !== STATES.SCANNING) historyPoints = []; 
+            }
+            ctx.restore();
+        }
+
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults(onResults);
+
+        const camera = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 480, height: 360 });
+        camera.start();
+
+        liveToggle.addEventListener('change', (e) => {
+            isLive = e.target.checked;
+            if (isLive) { currentState = STATES.IDLE; processLoop(); } else { overlay.classList.remove('active'); }
+        });
+
+        function addSpace() { sentenceBuffer += " "; finalSentence.innerText = sentenceBuffer; }
+        function clearAll() { sentenceBuffer = ""; finalSentence.innerText = "..."; tableBody.innerHTML = ""; emptyMsg.style.display = "block"; globalScanCount = 0; captureMap = {}; historyPoints = [];}
+    </script>
+</body>
+</html>
